@@ -1,196 +1,111 @@
-use std::net::{UdpSocket, SocketAddr, ToSocketAddrs};
-use std::vec;
-use std::collections::HashMap;
+use std::net::UdpSocket;
+use std::io;
 use std::process::exit;
-
-
 fn main() -> Result<(), std::io::Error> {
-    let mut size =0;
-   
-    let mut addresses: HashMap<String, SocketAddr> = HashMap::new();
+    // Create a UDP socket bound to a local address
+    let socket = UdpSocket::bind("127.0.0.1:1001")?;
+    let flag2=0;
+    // Destination address (IP and port) of the receiver
+    let dest_addr = "127.0.0.1:12345";
+    let mut flag3 =0;
+    // Message to send
+   // let message = "Ahmed";
+   while flag3 == 0
+   {
+        println!("Enter Your  Name ");
+        let mut name = String::new();
+        io::stdin().read_line(&mut name).unwrap();
+        socket.send_to(name.trim().as_bytes(), dest_addr)?;
+        let mut buffer = [0; 1024];
+        let (num_bytes, src_addr) = socket.recv_from(&mut buffer)?;
+        let received_message: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buffer[0..num_bytes]);
+        println!("You recieved a message'{}'",  received_message);
 
-    
-    // Create a UDP socket bound to the receiving address
-    let socket = UdpSocket::bind("0.0.0.0:12345")?;
-    println!("UDP receiver listening on 0.0.0.0:12345");
-    let mut buffer = [0; 1024];
-    let mut Namedirectory: Vec<String> = vec![];
-    let mut Add_directory: Vec<SocketAddr> = vec![];
-    let mut flag:i8 = 0;
-    let mut result:usize=0;
-    let mut choice: String = "0".to_string();
-    loop{
-  
-    let (num_bytes, src_addr) = socket.recv_from(&mut buffer)?;
-    let received_message: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buffer[0..num_bytes]);
-    if (size ==0)
-    {
-        addresses.insert(received_message.trim().to_string(),src_addr);
+       if received_message.trim().to_string()== "Name Registered".to_string()
+       {
       
-        println!("Registered {}",received_message.to_string());
-        socket.send_to("Name Registered".to_string().as_bytes(), src_addr)?;
+        flag3=1; 
+      
+       }
+}
+    loop{
+    println!("Choose to 1. Send \n 2. Recieve  \n 3.Exit");
+    let mut choice: String = String::new();
+    io::stdin().read_line(&mut choice).unwrap();
+    let c: i32 = choice.trim().parse().unwrap();
+    if(c==1)
+    {     
+        let mut flag:&str = "1";
+        socket.send_to(flag.as_bytes(), dest_addr)?;
        
-        let (num_bytes, src_addr) = socket.recv_from(&mut buffer)?;
-        let received_message: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buffer[0..num_bytes]);
+        // Send the message to the destination address
+        let mut flag = 0;
+        while flag==0{
+        println!("Enter Receiver's Name ");
+        let mut message = String::new();
+        io::stdin().read_line(&mut message).unwrap();
+        // Send the message to the destination address
+        socket.send_to(message.trim().as_bytes(), dest_addr)?;
+        println!("Message sent to {}: {}", dest_addr, message);
      
-        choice = received_message.trim().to_string();
-        size+=1;
-    }
-    else{
-    println!("connected address {}",src_addr);
-    if let Some(result) = Add_Search(&src_addr, &addresses) {
-        println!("Name already registered as: {}", result);
         
-        let (num_bytes, src_addr) = socket.recv_from(&mut buffer)?;
-        let received_message: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buffer[0..num_bytes]);
-                 
-        choice = received_message.trim().to_string();
-    
         
-    } else {
-        println!("Address not registered.");
-        let mut flag3 = 0;
-        if let Some(result) = Name_Search(&received_message.trim().to_string(), &addresses)
-        {
-            socket.send_to("Name is taken".to_string().as_bytes(), src_addr)?;
-            println!("Name is taken");
-            while flag3==0 {
-                let (num_bytes, src_addr) = socket.recv_from(&mut buffer)?;
-                let received_message: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buffer[0..num_bytes]);
-                if let Some(result) = Name_Search(&received_message.trim().to_string(), &addresses)
-                {
-                    socket.send_to("Name is taken".to_string().as_bytes(), src_addr)?;
-                    println!("Name is taken");
-                }
-                else{
-                    size+=1;
-                    addresses.insert(received_message.trim().to_string(),src_addr);
-                    println!("Registered {}",received_message.to_string());
-                    flag3=1;
-                    socket.send_to("Name Registered".to_string().as_bytes(), src_addr)?;
+            let mut buffer = [0; 1024];
+            let (num_bytes, src_addr) = socket.recv_from(&mut buffer)?;
+            let received_message: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buffer[0..num_bytes]);
+            println!("You recieved a message'{}'",  received_message);
+            if (received_message.to_string() == "Name not found".to_string())
+            {
+                println!("Name not found, Try another name");
                 
-                    let (num_bytes, src_addr) = socket.recv_from(&mut buffer)?;
-                    let received_message: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buffer[0..num_bytes]);
-                 
-                    choice = received_message.trim().to_string();
-
-
-                }
-
+                
+            }
+            else
+             {
+                let mut add = received_message.to_string();
+                let  dest_addr =add.as_str(); 
+                println!("Name found at address '{}' ", dest_addr);
+                println!("Enter Message ");
+                let mut m = String::new();
+                io::stdin().read_line(&mut m).unwrap();
+                // Send the message to the destination address
+                socket.send_to(m.as_bytes(), dest_addr)?;
+                flag =1;
             }
 
         }
-        
-        else{
-            size+=1;
-            addresses.insert(received_message.trim().to_string(),src_addr);
-            println!("Registered {}",received_message.to_string());
-            flag3=1;
-            socket.send_to("Name Registered".to_string().as_bytes(), src_addr)?;
-            let (num_bytes, src_addr) = socket.recv_from(&mut buffer)?;
-            let received_message: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buffer[0..num_bytes]);
-         
-            choice = received_message.trim().to_string();
-
-
-
-        }
-
+      
     }
-}
-        
-
-   while(choice == "1".to_string())
-   {
-  
-    let (num_bytes, src_addr) = socket.recv_from(&mut buffer)?;
-    let received_message: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buffer[0..num_bytes]);
-
-   // let add =Name_Search(&received_message.to_string(), &addresses);
-    if let Some(add) = Name_Search(&received_message.to_string(), &addresses)
+    if(c==2)
     {
-        println!("Address = {:?}", add);
-        socket.send_to(add.to_string().as_bytes(), src_addr)?;
-        choice= "0".to_string();
-    }
-    else{
-        let mut notf = "Name not found";
-        socket.send_to(notf.to_string().as_bytes(), src_addr)?;
 
-    }
-
-  
-   }
-  
-
-}
-}
-
-pub fn iterative_Add(a: &[SocketAddr], len: usize, target_value: SocketAddr, ite: usize) -> Option<usize> {
-    let mut low: i8 = 0;
-    let mut high: i8 = len as i8 - 1;
-
-    while low <= high {
-        let mid = ((high - low) / 2) + low;
-        let mid_index = mid as usize;
-        let val: SocketAddr = a[mid_index];
-
-        if val == target_value {
-            return Some(mid_index);
-        }
-
-        // Search values that are greater than val - to right of current mid_index
-        if val < target_value {
-            low = mid + 1;
-        }
-
-        // Search values that are less than val - to the left of current mid_index
-        if val > target_value {
-            high = mid - 1;
-        }
-    }
-
-    None
-}
-pub fn get_name_index(name: &String, array: &mut Vec<String>) -> usize {
-    let mut v: &mut Vec<String> =array;
-    println!("{:?}", &v);
-
-    v.sort_unstable();
-    println!("{:?}", &v);
-    println!("{}",name);
-    //name.replace("\r\n", "");
-    println!("{}",name);
-    match array.binary_search(name) {
-        Ok(index) => index,
         
-        Err(_) => {
-            println!("Error : variable {} not found in name array", name);
-            std::process::exit(1)
+        let mut flag:&str = "2";
+        socket.send_to(flag.as_bytes(), dest_addr)?;
+     
+        
+       
+        loop{
+       
+        let mut buffer = [0; 1024];
+        let (num_bytes, src_addr) = socket.recv_from(&mut buffer)?;
+        let received_message: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buffer[0..num_bytes]);
+        println!("You recieved a message'{}' from '{}'",  received_message.trim(),src_addr);
+        println!("Do you want to exit reciving state?");
+        println!("Press 2 to exit recieving halt, press any button to remain");
+        let mut x = String::new();
+        io::stdin().read_line(&mut x).unwrap();
+        let x2:i8 =x.trim().parse().unwrap();
+        if x2 ==2
+        {
+            break;
+        }
         }
     }
+    if(c==3)
+    {
+        exit(1);
+    }
 }
-
-pub fn Name_Search(name: &String, addresses: &HashMap<String, SocketAddr>) -> Option<SocketAddr> {
-
-
-    for (key,val) in addresses.into_iter() {
-        if (key == name){
-                return Some(*val);
-        };
-        
-     }
-None
-}
-
-pub fn Add_Search(add: &SocketAddr, addresses: &HashMap<String, SocketAddr>) -> Option<String> {
-
-
-    for (key,val) in addresses.into_iter() {
-        if (val == add){
-                return Some(key.to_string());
-        };
-        
-     }
-None
+    Ok(())
 }
