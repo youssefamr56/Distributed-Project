@@ -1,0 +1,284 @@
+use tokio::net::UdpSocket;
+use std::net::{SocketAddr, ToSocketAddrs};
+use std::vec;
+use std::collections::HashMap;
+use std::process::exit;
+use std::sync::Arc;
+extern crate csv;
+use csv::Writer;
+use csv::ReaderBuilder;
+use std::error::Error;
+use std::fs::OpenOptions;
+use std::mem;
+
+
+fn read_file(user_data: &mut HashMap<String, SocketAddr> ) -> Result<(), Box<dyn Error>> {
+    let file = std::fs::File::open("users.csv")?;
+    let mut read = ReaderBuilder::new().from_reader(file);
+
+    for result in read.records() {
+        let record = result?;
+        if record.len() >= 2 {
+            let name = record[0].to_string();
+            let add = record[1].to_string();
+            //println!(" Address {}  Name {} ", add,name);
+            // Parse the SocketAddr from the CSV data.
+            let socket_addr = add.parse::<SocketAddr>()?;
+            
+            user_data.insert(name, socket_addr);
+        }
+    }
+   // mem::drop(&file);
+    Ok(())
+}
+
+
+fn write_file( name: &str, socket_addr: &SocketAddr) -> Result<(), Box<dyn Error>> {
+    // Open the CSV file in append mode
+    let file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .append(true)
+        .open("users.csv")?;
+
+    let mut write = Writer::from_writer(file);
+
+    // Write the new entry to the CSV file
+    write.write_record(&[name, &socket_addr.to_string()])?;
+    write.flush()?;
+
+    Ok(())
+}
+
+async fn handle_udp_socket(bind_address: &str) {
+    let socket = UdpSocket::bind(bind_address).await.expect("Failed to bind to address");
+    println!("Bound to {}", bind_address);
+
+  
+
+    loop {
+        /*let (num_bytes, sender) = socket.recv_from(&mut buf).await.expect("Failed to receive data");
+
+        let data = &buf[..num_bytes];
+        let data_string = String::from_utf8_lossy(data).to_string(); // Convert the data to a String
+
+        let mut flag3=0;*/
+        // Store the received data in the HashMap with the sender's address as the key
+        
+        let mut users_data:HashMap<String, SocketAddr> = HashMap::new(); 
+        read_file(&mut users_data);
+        // Process the received data based on the receiving port
+        match bind_address {
+           
+            "127.0.0.1:1002" => {
+             
+            
+            let mut buf = [0; 1024];
+            let (num_bytes, sender) = socket.recv_from(&mut buf).await.expect("Failed to receive data");
+    
+            let data = &buf[..num_bytes];
+            let data_string = String::from_utf8_lossy(data).to_string(); // Convert the data to a String
+            println!("Received message: {}", data_string);
+            let mut flag3=0;
+         
+          
+            println!("connected address {}",sender);
+            if let Some(result) = Add_Search(&sender, &users_data) {
+                println!("Name already registered as: {}", result);
+                socket.send_to("Name Registered".to_string().as_bytes(), sender).await.expect("Failed to send response");
+                
+            } else {
+                println!("Address not registered.");
+                socket.send_to("Address not registered.".to_string().as_bytes(), sender).await.expect("Failed to send response");
+                let (num_bytes, sender) = socket.recv_from(&mut buf).await.expect("Failed to receive data");
+                let data = &buf[..num_bytes];
+                let data_string = String::from_utf8_lossy(data).to_string(); // Convert the data to a String
+                if let Some(result) = Name_Search(& data_string.clone(), &users_data)
+                {
+                    socket.send_to("Name is taken".to_string().as_bytes(), sender).await.expect("Failed to send response");
+
+                    println!("Name is taken");
+                    while flag3==0 {
+                        let (num_bytes, sender) = socket.recv_from(&mut buf).await.expect("Failed to receive data");
+                        let data = &buf[..num_bytes];
+                        let data_string = String::from_utf8_lossy(data).to_string(); // Convert the data to a String
+
+                        if let Some(result) = Name_Search(& data_string.clone(), &users_data)
+                        {
+                            socket.send_to("Name is taken".to_string().as_bytes(), sender).await.expect("Failed to send response");
+                            println!("Name is taken");
+                        }
+                        else{
+                             println!("Registered {}", data_string);
+                             //users_data.insert(data_string, sender);
+                             write_file(&data_string, &sender);
+                            
+                            
+                           
+                            flag3=1;
+                            socket.send_to("Name Registered".to_string().as_bytes(), sender).await.expect("Failed to send response");
+    
+                  }
+        
+                    }
+        
+                }
+                else {
+                  
+                    socket.send_to("Name Registered".to_string().as_bytes(), sender).await.expect("Failed to send response");
+                    println!("{} is registered as {} ", sender, data_string);
+                    //users_data.insert(data_string, sender);
+                    write_file(&data_string, &sender);
+                }
+        
+            }
+
+        }
+            "127.0.0.1:1003" => {
+                let mut buf = [0; 1024];
+              
+                //let mut users_data:HashMap<String, SocketAddr> = HashMap::new(); 
+                //read_file(&mut users_data);
+               // let add =Name_Search(&received_message.to_string(), &addresses);
+               let mut flag =0;
+               while flag ==0{
+                let (num_bytes, sender) = socket.recv_from(&mut buf).await.expect("Failed to receive data");
+
+                let data = &buf[..num_bytes];
+                let data_string = String::from_utf8_lossy(data).to_string(); // Convert the data to a String
+                if let Some(add) = Name_Search(&data_string.to_string(), &users_data)
+                {
+                    println!("Address = {:?}", add);
+                    println!("sender address: {:?}",sender);
+                    socket.send_to(add.to_string().as_bytes(), sender).await.expect("Failed to send response");
+                    let flag =1;
+                }
+                else{
+                    let mut notf = "Name not found";
+                    println!("{}",notf);
+                    println!("sender address: {:?}",sender);
+                    socket.send_to(notf.to_string().as_bytes(), sender).await.expect("Failed to send response");
+            
+                }
+               }
+              
+            }
+            "127.0.0.1:1004" => {
+               
+                return;
+            }
+            "127.0.0.1:1005" => {
+                
+            }
+            _ => {
+                println!("Received data on an unknown port");
+                // Handle data for unknown ports
+            }
+        }
+        
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    /*let socket = UdpSocket::bind("127.0.0.1:1002").await.expect("Failed to bind to address");
+    println!("Bound to {}", "127.0.0.1:1002");
+
+    let mut buf = [0; 1024];
+*/
+   
+
+    
+    let ports_to_bind = vec!["127.0.0.1:1002","127.0.0.1:1003", "127.0.0.1:1004","127.0.0.1:1005"];
+    //let mut Namedirectory: Vec<String> = vec![];
+    //let mut Add_directory: Vec<SocketAddr> = vec![];
+  
+    let mut handles = vec![];
+
+    for &bind_address in &ports_to_bind {
+    
+        let handle = tokio::spawn(handle_udp_socket(bind_address));
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        println!("here");
+        handle.await.expect("Task panicked");
+    }
+}
+    // At this point, you can access the received data stored in the 'data_store' HashMap and use it as needed.
+
+
+
+pub fn iterative_Add(a: &[SocketAddr], len: usize, target_value: SocketAddr, ite: usize) -> Option<usize> {
+    let mut low: i8 = 0;
+    let mut high: i8 = len as i8 - 1;
+
+    while low <= high {
+        let mid = ((high - low) / 2) + low;
+        let mid_index = mid as usize;
+        let val: SocketAddr = a[mid_index];
+
+        if val == target_value {
+            return Some(mid_index);
+        }
+
+        // Search values that are greater than val - to right of current mid_index
+        if val < target_value {
+            low = mid + 1;
+        }
+
+        // Search values that are less than val - to the left of current mid_index
+        if val > target_value {
+            high = mid - 1;
+        }
+    }
+
+    None
+}
+pub fn get_name_index(name: &String, array: &mut Vec<String>) -> usize {
+    let mut v: &mut Vec<String> =array;
+    println!("{:?}", &v);
+
+    v.sort_unstable();
+    println!("{:?}", &v);
+    println!("{}",name);
+    //name.replace("\r\n", "");
+    println!("{}",name);
+    match array.binary_search(name) {
+        Ok(index) => index,
+        
+        Err(_) => {
+            println!("Error : variable {} not found in name array", name);
+            std::process::exit(1)
+        }
+    }
+}
+
+pub fn Name_Search(name: &String, addresses: &HashMap<String, SocketAddr>) -> Option<SocketAddr> {
+
+
+    for (key,val) in addresses.into_iter() {
+        println!(" Address {}  Name {} ", val,key);
+        if (key == name){
+                return Some(*val);
+        };
+        
+     }
+None
+}
+
+pub fn Add_Search(add: &SocketAddr, addresses: &HashMap<String, SocketAddr>) -> Option<String> {
+
+
+    for (key,val) in addresses.into_iter() {
+        println!(" Address {}  Name {} ", val,key);
+        if (val == add){
+                return Some(key.to_string());
+        };
+        
+     }
+None
+}
+
+
