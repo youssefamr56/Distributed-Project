@@ -1,0 +1,150 @@
+use fltk::{prelude::*, *};
+use fltk::group::Flex;
+use fltk::input::Input;
+use fltk::window::Window;
+
+
+fn main() {
+    let a = app::App::default().with_scheme(app::Scheme::Gtk);
+    let mut win = window::Window::default().with_size(640, 480);
+    let mut col = group::Flex::default_fill().column();
+    main_panel(&mut col);
+    col.end();
+    win.resizable(&col);
+    win.set_color(enums::Color::from_rgb(250, 250, 250));
+    win.end();
+    win.show();
+    win.size_range(600, 400, 0, 0);
+    a.run().unwrap();
+}
+fn buttons_panel(parent: &mut group::Flex) {
+    frame::Frame::default();
+    let w = frame::Frame::default().with_label("Distributed System");
+
+    let mut urow = group::Flex::default().row();
+    {
+        frame::Frame::default()
+            .with_label("Username:")
+            .with_align(enums::Align::Inside | enums::Align::Right);
+        let username = input::Input::default();
+
+        urow.fixed(&username, 180);
+        urow.end();
+    }
+    let pad = frame::Frame::default();
+
+    let mut brow = group::Flex::default().row();
+    {
+        frame::Frame::default();
+        // let reg = create_button("Register");
+        let mut login = create_button("Login");
+        login.set_callback(move |_| handle_login_button_click());
+        brow.fixed(&login, 80);
+        brow.end();
+    }
+
+    let b = frame::Frame::default();
+
+    frame::Frame::default();
+
+    parent.fixed(&w, 60);
+    parent.fixed(&urow, 30);
+    parent.fixed(&pad, 1);
+    parent.fixed(&brow, 30);
+    parent.fixed(&b, 30);
+}
+
+fn middle_panel(parent: &mut group::Flex) {
+    frame::Frame::default();
+    let spacer = frame::Frame::default();
+
+    let mut bp = group::Flex::default().column();
+    buttons_panel(&mut bp);
+    bp.end();
+
+    frame::Frame::default();
+    parent.fixed(&spacer, 10);
+    parent.fixed(&bp, 300);
+}
+
+fn main_panel(parent: &mut group::Flex) {
+    frame::Frame::default();
+
+    let mut mp = group::Flex::default().row();
+    middle_panel(&mut mp);
+    mp.end();
+
+    frame::Frame::default();
+
+    parent.fixed(&mp, 200);
+}
+
+fn create_button(caption: &str) -> button::Button {
+    let mut btn = button::Button::default().with_label(caption);
+    btn.set_color(enums::Color::from_rgb(225, 225, 225));
+    btn
+}
+
+// Callback function for the "Login" button
+fn handle_login_button_click() {
+    // Perform actions when the "Login" button is clicked
+    println!("Login Button Clicked!");
+
+    let mut win = window::Window::default().with_size(640, 480);
+    let mut col = group::Flex::default_fill().row(); // Change to row layout
+    let mut left_panel = group::Flex::default_fill().column();
+
+    let mut new_chat_button = create_button("New Chat");
+    left_panel.add(&new_chat_button);
+    col.add(&left_panel);
+    // Set up the callback for the "New Chat" button
+    new_chat_button.set_callback(move |_| {
+        handle_new_chat_button_click(&mut left_panel);
+    });
+
+    // Create the main content panel (middle and right panels)
+    let mut main_panel = group::Flex::default_fill().column();
+    main_panel.end();
+    col.add(&main_panel);
+    col.end();
+    win.resizable(&col);
+    win.set_color(enums::Color::from_rgb(250, 250, 250));
+    win.end();
+    win.show();
+    win.size_range(600, 400, 0, 0);
+}
+
+// Callback function for the "New Chat" button
+fn handle_new_chat_button_click(left_panel: &mut group::Flex) {
+    // Prompt the user to enter the receiver's name and IP address using input fields
+    let mut wind = window::Window::new(100, 100, 600, 300, "Receiver Information");
+
+    let mut receiver_name_input = input::Input::new(120, 10, 300, 30, "Receiver Name:");
+    let mut receiver_ip_input = input::Input::new(120, 50, 300, 30, "Receiver IP:");
+    let mut submit_button = button::Button::new(420, 10, 70, 70, "Submit");
+    let mut panel= left_panel.clone();
+    wind.end();
+    wind.show();
+
+    submit_button.set_callback(move |_| {
+        handle_submit(&mut panel, &mut wind, &mut receiver_name_input, &mut receiver_ip_input);
+    });
+
+}
+
+fn handle_submit(left_panel: &mut Flex, wind: &mut Window, receiver_name_input: &mut Input,
+                 receiver_ip_input: &mut Input)  {
+    // Declare variables to store user input
+    let mut receiver_name_storage = String::new();
+    let mut receiver_ip_storage = String::new();
+
+    let receiver_name = receiver_name_input.value();
+    let receiver_ip = receiver_ip_input.value();
+
+    receiver_name_storage = receiver_name.to_string();
+    receiver_ip_storage = receiver_ip.to_string();
+    let mut new_user_button = create_button(&receiver_name_storage);
+    left_panel.add(&new_user_button);
+    wind.hide();
+
+}
